@@ -16,11 +16,11 @@ document.getElementById("loginForm").addEventListener("submit", async function (
         const result = await response.json();
 
         if (response.status === 200) {
-            // Guardar el token en localStorage o sessionStorage
+            // Guardar el token en localStorage
             localStorage.setItem("token", result.token);
 
-            // Redirigir al usuario
-            window.location.href = "/";
+            // Redirigir al perfil
+            window.location.href = "/perfil";
         } else {
             document.getElementById("loginMessage").innerText = result.error || "Error desconocido.";
         }

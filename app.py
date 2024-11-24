@@ -74,10 +74,11 @@ def login():
 
         cursor.close()
 
-        if user and bcrypt.checkpw(password.encode('utf-8'), user[2].encode('utf-8')):  # Comparar la contraseña hasheada
+        if user and bcrypt.checkpw(password.encode('utf-8'), user[3].encode('utf-8')):  # Comparar la contraseña hasheada
             # Crear un JWT con los datos del usuario
             token = jwt.encode({
                 "user_id": user[0],  # ID del usuario
+                "username": user[1],  # Nombre de usuario (asegúrate de que esté en tu base de datos)
                 "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)  # Tiempo de expiración del token (1 hora)
             }, app.config['SECRET_KEY'], algorithm="HS256")
 
@@ -92,26 +93,45 @@ def login():
 
 
 
-def token_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        token = None
-        if 'Authorization' in request.headers:
-            token = request.headers['Authorization'].split(" ")[1]  # Obtener el token del header
+import jwt
+from flask import jsonify, request
 
-        if not token:
-            return jsonify({"error": "Token de acceso requerido"}), 403
+@app.route("/user-data", methods=["GET"])
+def user_data():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
 
-        try:
-            # Verificar el token
-            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
-            current_user_id = data['user_id']
-        except jwt.ExpiredSignatureError:
-            return jsonify({"error": "El token ha expirado"}), 401
-        except jwt.InvalidTokenError:
-            return jsonify({"error": "Token inválido"}), 401
+    if not token:
+        return jsonify({"error": "Token no proporcionado"}), 401
 
-        return f(current_user_id, *args, **kwargs)
-    return decorated_function
+    try:
+        decoded = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+        user_id = decoded.get("user_id")
+
+        cursor = mysql.connection.cursor()
+        query = """SELECT username, email FROM usuarios WHERE id = %s"""
+        cursor.execute(query, (user_id,))
+        user = cursor.fetchone()
+        cursor.close()
+
+        if user:
+            return jsonify({
+                "username": user[0],
+                "email": user[1],
+            }), 200
+        else:
+            return jsonify({"error": "Usuario no encontrado"}), 404
+
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "El token ha expirado"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Token inválido"}), 401
+
+
+
+
+@app.route("/perfil")
+def perfil():
+    return send_from_directory("static/views", "perfil.html")
+
 
 app.run(host="0.0.0.0", port=5001, debug=True)
