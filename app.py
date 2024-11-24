@@ -130,5 +130,9 @@ def user_data():
 def perfil():
     return send_from_directory("static/views", "perfil.html")
 
+@app.route("/contactos")
+def contactos():
+    return send_from_directory("static/views", "contactos.html")
+
 
 app.run(host="0.0.0.0", port=5001, debug=True)
