@@ -1,11 +1,11 @@
-from flask import Flask, send_from_directory, request, jsonify, session , redirect, url_for
+from flask import Flask, send_from_directory, request, jsonify
 from db import init_db, mysql
 import os, bcrypt, jwt, datetime
 from functools import wraps
 
 app = Flask(__name__)
 
-app.secret_key = os.urandom(24)  # Genera una clave secreta aleatoria para sesiones y seguridad
+app.config['SECRET_KEY'] = "mi_clave_super_secreta"
 
 # Inicializamos la base de datos
 init_db(app)
@@ -92,9 +92,6 @@ def login():
         return jsonify({"error": f"Error al autenticar el usuario: {str(e)}"}), 500
 
 
-
-import jwt
-from flask import jsonify, request
 
 @app.route("/user-data", methods=["GET"])
 def user_data():
