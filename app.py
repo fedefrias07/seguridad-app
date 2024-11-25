@@ -36,11 +36,11 @@ def home():
 
 @app.route("/login")
 def login_view():
-    return send_from_directory("static/views", "login.html")
+    return send_from_directory("static/views/auth", "login.html")
 
 @app.route("/registro")
 def register_view():
-    return send_from_directory("static/views", "registro.html")
+    return send_from_directory("static/views/auth", "registro.html")
 
 
 @app.route("/registro", methods=["POST"])
@@ -150,11 +150,11 @@ def perfil():
 
 @app.route("/contactos")                                                                                
 def contactos():
-    return send_from_directory("static/views", "contactos.html")
+    return send_from_directory("static/views/contactos", "contactos.html")
 
 @app.route("/agregar-contacto")
 def vista_agregar_contacto():
-    return send_from_directory("static/views", "agregar_contacto.html")
+    return send_from_directory("static/views/contactos", "agregar_contacto.html")
 
 
 
