@@ -2,6 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const loginLink = document.getElementById("loginLink");
     const registerLink = document.getElementById("registerLink");
     const logoutButton = document.getElementById("logoutButton");
+    const perfilButton = document.getElementById("perfilButton");
     const usernameSpan = document.getElementById("username");
 
     const token = localStorage.getItem("token");
@@ -11,6 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
         loginLink.classList.add("d-none");
         registerLink.classList.add("d-none");
         logoutButton.classList.remove("d-none");
+        perfilButton.classList.remove("d-none");
 
         // Decodificar el token para obtener el nombre de usuario
         const payload = JSON.parse(atob(token.split(".")[1])); // Decodificar la parte del payload del token
@@ -24,6 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
         loginLink.classList.remove("d-none");
         registerLink.classList.remove("d-none");
         logoutButton.classList.add("d-none");
+        perfilButton.classList.add("d-none");
 
         // Limpiar el nombre de usuario
         usernameSpan.textContent = "";
