@@ -1,4 +1,4 @@
-// Función para obtener el token JWT (puedes adaptarlo según cómo lo almacenes)
+// Función para obtener el token JWT
 function obtenerToken() {
     return localStorage.getItem("token"); // Suponiendo que guardaste el token en localStorage
 }
@@ -69,6 +69,44 @@ async function cargarContactos() {
     }
 }
 
+
+// Función para redirigir a la página de edición del contacto
+function editarContacto(id) {
+    window.location.href = `/editar-contacto?id=${id}`;  // Redirige a la página de edición con el ID del contacto
+}
+
+
+// Función para eliminar un contacto
+async function eliminarContacto(contactoId) {
+    const confirmar = window.confirm("¿Estás seguro de que deseas eliminar este contacto?");
+    if (confirmar) {
+        try {
+            const token = obtenerToken();
+            if (!token) {
+                alert("Debes iniciar sesión para realizar esta acción.");
+                return;
+            }
+
+            const response = await fetch(`/api/contactos/${contactoId}`, {
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                alert("Contacto eliminado con éxito.");
+                cargarContactos(); // Recargar la lista de contactos después de eliminar
+            } else {
+                alert("Error al eliminar el contacto.");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("No se pudo eliminar el contacto.");
+        }
+    }
+}
+
 // Verificar autenticación y cargar los contactos al cargar la página
 document.addEventListener("DOMContentLoaded", () => {
     if (verificarAutenticacion()) {
@@ -92,5 +130,3 @@ async function cargarNav() {
 
 // Llamar a la función cuando la página esté lista
 document.addEventListener("DOMContentLoaded", cargarNav);
-
-

@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory, request, jsonify
+from flask import Flask, send_from_directory, request, jsonify, redirect, url_for
 from db import init_db, mysql
 import os, bcrypt, jwt, datetime
 from functools import wraps
@@ -156,6 +156,10 @@ def contactos():
 def vista_agregar_contacto():
     return send_from_directory("static/views/contactos", "agregar_contacto.html")
 
+@app.route("/editar-contacto")
+def vista_editar_contacto():
+    return send_from_directory("static/views/contactos", "editar_contacto.html")
+
 
 
 @app.route("/api/contactos", methods=["GET"])
@@ -218,6 +222,95 @@ def agregar_contacto():
         return jsonify({"message": "Contacto agregado exitosamente"}), 201
     except Exception as e:
         return jsonify({"error": f"Error al agregar contacto: {str(e)}"}), 500
+    
+
+
+@app.route("/api/contactos/<int:contacto_id>", methods=["GET", "PUT"])
+@requiere_autenticacion
+def editar_contacto(contacto_id):
+    # Si es una solicitud GET, obtener los datos del contacto
+    if request.method == "GET":
+        try:
+            cursor = mysql.connection.cursor()
+            query = """SELECT id_contacto, nombre, apellido, email, telefono, fecha_nacimiento, ubicacion, tags
+                       FROM contactos WHERE id_contacto = %s"""
+            cursor.execute(query, (contacto_id,))
+            contacto = cursor.fetchone()
+            cursor.close()
+
+            if contacto:
+                # Convertir los resultados a JSON y devolverlos
+                contacto_json = {
+                    "id": contacto[0],
+                    "nombre": contacto[1],
+                    "apellido": contacto[2],
+                    "email": contacto[3],
+                    "telefono": contacto[4],
+                    "fecha_nacimiento": contacto[5],
+                    "ubicacion": contacto[6],
+                    "tags": contacto[7]
+                }
+                return jsonify(contacto_json), 200
+            else:
+                return jsonify({"error": "Contacto no encontrado"}), 404
+        except Exception as e:
+            return jsonify({"error": f"Error al obtener contacto: {str(e)}"}), 500
+
+    # Si es una solicitud POST, actualizar los datos del contacto
+    elif request.method == "PUT":
+        data = request.json  # Obtener los datos del formulario enviados en JSON
+        nombre = data.get("nombre")
+        apellido = data.get("apellido")
+        email = data.get("email")
+        telefono = data.get("telefono")
+        fecha_nacimiento = data.get("fecha_nacimiento")
+        ubicacion = data.get("ubicacion")
+        tags = data.get("tags")
+
+        try:
+            cursor = mysql.connection.cursor()
+            query = """UPDATE contactos SET nombre = %s, apellido = %s, email = %s, telefono = %s, 
+                       fecha_nacimiento = %s, ubicacion = %s, tags = %s WHERE id_contacto = %s"""
+            cursor.execute(query, (nombre, apellido, email, telefono, fecha_nacimiento, ubicacion, tags, contacto_id))
+            mysql.connection.commit()
+            cursor.close()
+
+            return jsonify({"message": "Contacto actualizado exitosamente"}), 200
+        except Exception as e:
+            return jsonify({"error": f"Error al actualizar contacto: {str(e)}"}), 500
+
+
+
+@app.route("/api/contactos/<int:id>", methods=["DELETE"])
+@requiere_autenticacion
+def eliminar_contacto(id):
+    try:
+        # Verificamos si el contacto existe
+        cursor = mysql.connection.cursor()
+        query = "SELECT * FROM contactos WHERE id_contacto = %s"
+        cursor.execute(query, (id,))
+        contacto = cursor.fetchone()
+
+        if not contacto:
+            return jsonify({"error": "Contacto no encontrado"}), 404
+
+        # Si existe, procedemos a eliminarlo
+        query_delete = "DELETE FROM contactos WHERE id_contacto = %s"
+        cursor.execute(query_delete, (id,))
+        mysql.connection.commit()
+        cursor.close()
+
+        return jsonify({"message": "Contacto eliminado con éxito"}), 200
+
+    except Exception as e:
+        return jsonify({"error": f"Error al eliminar el contacto: {str(e)}"}), 500
+
+
+
+
+
+
+
 
 
 
