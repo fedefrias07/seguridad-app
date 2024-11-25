@@ -114,19 +114,3 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-// Función para cargar el nav en la página
-async function cargarNav() {
-    try {
-        const response = await fetch("/static/views/nav.html");
-        if (!response.ok) {
-            throw new Error("Error al cargar el nav");
-        }
-        const navHTML = await response.text();
-        document.getElementById("navbarContainer").innerHTML = navHTML;
-    } catch (error) {
-        console.error(error);
-    }
-}
-
-// Llamar a la función cuando la página esté lista
-document.addEventListener("DOMContentLoaded", cargarNav);

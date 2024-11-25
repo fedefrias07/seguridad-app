@@ -10,11 +10,15 @@ document.getElementById("agregarContactoForm").addEventListener("submit", async 
     const ubicacion = document.getElementById("ubicacion").value;
     const tags = document.getElementById("tags").value;
 
+    // Obtener el token del almacenamiento local
+    const token = localStorage.getItem("token");
+
     try {
         const response = await fetch("/agregar-contacto", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`, // Enviar el token en el encabezado
             },
             body: JSON.stringify({
                 nombre,

@@ -1,6 +1,6 @@
-from flask import Flask, send_from_directory, request, jsonify, redirect, url_for
+from flask import Flask, send_from_directory, request, jsonify
 from db import init_db, mysql
-import os, bcrypt, jwt, datetime
+import bcrypt, jwt, datetime
 from functools import wraps
 
 app = Flask(__name__)
@@ -22,6 +22,7 @@ def requiere_autenticacion(func):
             decoded = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
             # Si el token es válido, podemos pasar datos decodificados (por ejemplo, user_id) a la función
             request.user_id = decoded.get("user_id")
+            request.user_rol = decoded.get("rol")
         except jwt.ExpiredSignatureError:
             return jsonify({"error": "El token ha expirado"}), 401
         except jwt.InvalidTokenError:
@@ -29,6 +30,46 @@ def requiere_autenticacion(func):
 
         return func(*args, **kwargs)
     return wrapper
+
+
+# Decorador para verificar permisos
+def requiere_permiso(permiso_requerido):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            token = request.headers.get("Authorization", "").replace("Bearer ", "")
+            if not token:
+                return jsonify({"error": "Token no proporcionado"}), 401
+
+            try:
+                decoded = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+                user_rol = decoded.get("rol")
+
+                cursor = mysql.connection.cursor()
+                # Verificar si el rol tiene el permiso
+                query = """
+                    SELECT COUNT(*) 
+                    FROM roles_permisos rp
+                    JOIN permisos p ON rp.permiso_id = p.id_permiso
+                    WHERE rp.rol_id = %s AND p.nombre = %s
+                """
+                cursor.execute(query, (user_rol, permiso_requerido))
+                tiene_permiso = cursor.fetchone()[0] > 0
+                cursor.close()
+
+                if not tiene_permiso:
+                    return jsonify({"error": "No tienes permisos para realizar esta acción"}), 403
+
+            except jwt.ExpiredSignatureError:
+                return jsonify({"error": "El token ha expirado"}), 401
+            except jwt.InvalidTokenError:
+                return jsonify({"error": "Token inválido"}), 401
+            except Exception as e:
+                return jsonify({"error": f"Error al verificar permisos: {str(e)}"}), 500
+
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 @app.route("/")
 def home():
@@ -98,6 +139,7 @@ def login():
             token = jwt.encode({
                 "user_id": user[0],  # ID del usuario
                 "username": user[1],  # Nombre de usuario (asegúrate de que esté en tu base de datos)
+                "rol": user[4],  # ID del rol
                 "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)  # Tiempo de expiración del token (1 hora)
             }, app.config['SECRET_KEY'], algorithm="HS256")
 
@@ -109,8 +151,7 @@ def login():
             return jsonify({"error": "Correo o contraseña incorrectos"}), 401
     except Exception as e:
         return jsonify({"error": f"Error al autenticar el usuario: {str(e)}"}), 500
-
-
+    
 
 @app.route("/user-data", methods=["GET"])
 def user_data():
@@ -133,7 +174,7 @@ def user_data():
             return jsonify({
                 "username": user[0],
                 "email": user[1],
-            }), 200
+             }), 200
         else:
             return jsonify({"error": "Usuario no encontrado"}), 404
 
@@ -143,8 +184,8 @@ def user_data():
         return jsonify({"error": "Token inválido"}), 401
 
 
-
 @app.route("/perfil")
+
 def perfil():
     return send_from_directory("static/views", "perfil.html")
 
@@ -195,6 +236,8 @@ def obtener_contactos():
     
 
 @app.route("/agregar-contacto", methods=["POST"])
+@requiere_autenticacion
+@requiere_permiso("agregar_contacto")  # Decorador que verifica el permiso necesario
 def agregar_contacto():
     data = request.json
     nombre = data.get("nombre")
@@ -204,7 +247,6 @@ def agregar_contacto():
     fecha_nacimiento = data.get("fecha_nacimiento")
     ubicacion = data.get("ubicacion")
     tags = data.get("tags")
-    id_usuario = 1  # Asigna un ID de usuario por defecto o cambia según corresponda
 
     if not nombre or not apellido or not email:
         return jsonify({"error": "Los campos nombre, apellido y email son obligatorios"}), 400
@@ -212,10 +254,10 @@ def agregar_contacto():
     try:
         cursor = mysql.connection.cursor()
         query = """
-            INSERT INTO contactos (nombre, apellido, email, telefono, fecha_nacimiento, ubicacion, tags, id_usuario)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO contactos (nombre, apellido, email, telefono, fecha_nacimiento, ubicacion, tags)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
-        cursor.execute(query, (nombre, apellido, email, telefono, fecha_nacimiento, ubicacion, tags, id_usuario))
+        cursor.execute(query, (nombre, apellido, email, telefono, fecha_nacimiento, ubicacion, tags))
         mysql.connection.commit()
         cursor.close()
 
@@ -227,6 +269,7 @@ def agregar_contacto():
 
 @app.route("/api/contactos/<int:contacto_id>", methods=["GET", "PUT"])
 @requiere_autenticacion
+@requiere_permiso("editar_contacto")  # Decorador que verifica el permiso necesario
 def editar_contacto(contacto_id):
     # Si es una solicitud GET, obtener los datos del contacto
     if request.method == "GET":
@@ -283,6 +326,7 @@ def editar_contacto(contacto_id):
 
 @app.route("/api/contactos/<int:id>", methods=["DELETE"])
 @requiere_autenticacion
+@requiere_permiso("eliminar_contacto")  # Decorador que verifica el permiso necesario
 def eliminar_contacto(id):
     try:
         # Verificamos si el contacto existe
@@ -307,13 +351,8 @@ def eliminar_contacto(id):
 
 
 
+#app.run(host="0.0.0.0", port=5001, debug=True)
+app.run(host="0.0.0.0", port=8443, ssl_context=("certificados/cert.pem", "certificados/key.pem"))
 
 
 
-
-
-
-
-
-
-app.run(host="0.0.0.0", port=5001, debug=True)
